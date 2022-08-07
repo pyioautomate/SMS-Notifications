@@ -1,0 +1,82 @@
+import smtplib
+from email.message import EmailMessage
+from numpy import asarray
+from mss import mss
+import cv2
+import time
+
+
+def sms_notification (subject, body, to):
+
+    #https://youtu.be/B1IsCbXp0uE?t=365   Watch to setup gmail application    <---------------------------------------
+    
+    #Enter your e-mail address and application password
+    user = "username"  #Change to your email                                  <---------------------------------------
+    password = "password"    #Change to your application password             <---------------------------------------
+
+    #Setup details of notification
+    notification = EmailMessage()
+    notification['subject'] = subject
+    notification.set_content(body)
+    notification['to'] = to
+    notification['from'] = user
+
+    #Server login and send notification
+    server = smtplib.SMTP("smtp.gmail.com", 587)
+    server.starttls()
+    server.login(user, password)
+    server.send_message(notification)
+    server.quit()
+
+
+
+def bot_vision():
+    screenshot_coordinates = (0, 0, 0, 0)         #Screen Shot Cords    <--------------------------------------
+    template = cv2.imread("template file path")   #Template file path   <--------------------------------------
+
+    with mss() as sct:
+        #SCREEN SIZE AND CONVERT TO NUMPY ARRAY
+        screenshot = sct.grab(screenshot_coordinates)
+        screenshot_array = asarray(screenshot)
+
+        #PUT SCREENSHOT AND TEMPLATE INTO GREYSCALE
+        screenshot_grey = cv2.cvtColor(screenshot_array, cv2.COLOR_RGB2GRAY)
+        template_gray = cv2.cvtColor(template, cv2.COLOR_RGB2GRAY)
+        box_width, box_height = template_gray.shape[::-1]
+
+        #COMPARE SCREENSHOT TO TEMPLATE
+        result_day = cv2.matchTemplate(
+            image=screenshot_grey,
+            templ=template_gray,
+            method=cv2.TM_CCOEFF_NORMED)
+
+        caught_min_val, caught_max_val, caught_min_loc, caught_max_loc = cv2.minMaxLoc(result_day)
+        if caught_max_val >= 0.8:
+            image = cv2.rectangle(
+                img=screenshot_grey,
+                pt1=caught_max_loc,
+                pt2=(caught_max_loc[0] + box_width,
+                     caught_max_loc[1] + box_height),
+                color=(0, 0, 255),
+                thickness=2)
+                sms_notification("ALERT", "YOUR CHICKENS ARE HUNGRY", "123456789@vtext.com") #Message   <--------
+                time.sleep(10)
+
+# Carrier	              SMS Gateway Domain	                          MMS Gateway Domain
+
+# AT&T	                  number@txt.att.net	                          number@mms.att.net
+# Boost Mobile	          number@sms.myboostmobile.com	                  number@myboostmobile.com
+# Cricket Wireless	      number@mms.cricketwireless.net	              number@mms.cricketwireless.net
+# Google Project Fi	      number@msg.fi.google.com	                      number@msg.fi.google.com
+# Republic Wireless	      number@text.republicwireless.com	              None
+# Sprint	              number@messaging.sprintpcs.com	              number@pm.sprint.com
+# Straight Talk	          number@vtext.com	                              number@mypixmessages.com
+# T-Mobile	              number@tmomail.net	                          number@tmomail.net
+# Ting	                  number@message.ting.com	                      None
+# Tracfone	              Depends on underlying carrier	                  number@mmst5.tracfone.com
+# U.S. Cellular	          number@email.uscc.net	                          number@mms.uscc.net
+# Verizon	              number@vtext.com	                              number@vzwpix.com
+# Virgin Mobile	          number@vmobl.com	                              number@vmpix.com
+
+while True:
+    bot_vision()
